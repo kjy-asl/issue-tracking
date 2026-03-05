@@ -259,6 +259,71 @@ services:
           sleep 2
     restart: "no"
 
+  localstack:
+    image: localstack/localstack:3.0
+    container_name: localstack
+    networks: [msa-net]
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: sqs
+    volumes:
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
+
+  localstack-init:
+    image: amazon/aws-cli:2.15.0
+    container_name: localstack-init
+    networks: [msa-net]
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+          aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name pos-order-queue
+    restart: "no"
+
+  relay-db:
+    image: mysql:8.4
+    container_name: relay-db
+    networks: [msa-net]
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: relaydb
+    ports:
+      - "3311:3306"
+    volumes:
+      - relay-db-data:/var/lib/mysql
+
+  pos-relay-service:
+    build:
+      context: .
+      dockerfile: pos-relay-service/Dockerfile
+    container_name: pos-relay-service
+    networks: [msa-net]
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      relay-db:
+        condition: service_started
+      order-db:
+        condition: service_started
+      localstack-init:
+        condition: service_completed_successfully
+    ports:
+      - "8085:8080"
+
 volumes:
   kafka-data:
   member-db-data:
@@ -266,3 +331,5 @@ volumes:
   event-db-data:
   coupon-db-data:
   redis-data:
+  localstack-data:
+  relay-db-data:
