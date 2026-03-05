@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: pos-relay-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+  cloud:
+    aws:
+      region:
+        static: us-east-1
+      credentials:
+        access-key: test
+        secret-key: test
+
+pos:
+  sqs:
+    queue-name: pos-order-queue
+
+---
+# LOCAL
+spring:
+  config:
+    activate:
+      on-profile: local
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.dialect: org.hibernate.dialect.MySQLDialect
+  flyway:
+    enabled: true
+
+server:
+  port: 8085
+
+pos:
+  datasource:
+    relay:
+      url: jdbc:mysql://localhost:3311/relaydb?useSSL=false&characterEncoding=UTF-8&serverTimezone=UTC
+      username: root
+      password: root
+    order:
+      url: jdbc:mysql://localhost:3308/orderdb?useSSL=false&characterEncoding=UTF-8&serverTimezone=UTC
+      username: root
+      password: root
+  sqs:
+    endpoint: http://localhost:4566
+    region: us-east-1
+    access-key: test
+    secret-key: test
+
+---
+# DOCKER
+spring:
+  config:
+    activate:
+      on-profile: docker
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.dialect: org.hibernate.dialect.MySQLDialect
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+pos:
+  datasource:
+    relay:
+      url: jdbc:mysql://relay-db:3306/relaydb?useSSL=false&characterEncoding=UTF-8&serverTimezone=UTC
+      username: root
+      password: root
+    order:
+      url: jdbc:mysql://order-db:3306/orderdb?useSSL=false&characterEncoding=UTF-8&serverTimezone=UTC
+      username: root
+      password: root
+  sqs:
+    endpoint: http://localstack:4566
+    region: us-east-1
+    access-key: test
+    secret-key: test
